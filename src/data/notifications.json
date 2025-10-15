@@ -1,0 +1,67 @@
+[
+  {
+    "id": "notif_001",
+    "type": "resume_analysis",
+    "title": "Your resume analysis is ready",
+    "message": "Your resume was analyzed — Score: 85. View the detailed report.",
+    "timestamp": "2025-01-15T08:15:00Z",
+    "read": false,
+    "actions": [
+      { "label": "View Report", "url": "/resume" }
+    ]
+  },
+  {
+    "id": "notif_002",
+    "type": "resume_vs_jd",
+    "title": "Resume vs Job Description comparison ready",
+    "message": "Frontend Developer position - 67% match. 4 skills missing from your resume.",
+    "timestamp": "2025-01-14T14:30:00Z",
+    "read": false,
+    "actions": [
+      { "label": "View Comparison", "url": "/resume" }
+    ]
+  },
+  {
+    "id": "notif_003",
+    "type": "application_status",
+    "title": "Application status updated",
+    "message": "Your application for Senior Frontend Developer at TechCorp has been shortlisted!",
+    "timestamp": "2025-01-13T16:45:00Z",
+    "read": true,
+    "actions": [
+      { "label": "View Application", "url": "/applications" }
+    ]
+  },
+  {
+    "id": "notif_004",
+    "type": "recruiter_feedback",
+    "title": "New feedback from recruiter",
+    "message": "Sarah Chen from TechCorp left feedback on your application. Please review and respond.",
+    "timestamp": "2025-01-12T11:20:00Z",
+    "read": false,
+    "actions": [
+      { "label": "View Feedback", "url": "/applications" }
+    ]
+  },
+  {
+    "id": "notif_005",
+    "type": "interview_invite",
+    "title": "Interview invitation received",
+    "message": "You've been invited for a technical interview at StartupXYZ on January 20th at 2:00 PM.",
+    "timestamp": "2025-01-11T09:30:00Z",
+    "read": true,
+    "actions": [
+      { "label": "Accept", "url": "/applications" },
+      { "label": "Decline", "url": "/applications" }
+    ]
+  },
+  {
+    "id": "notif_006",
+    "type": "system",
+    "title": "Platform maintenance scheduled",
+    "message": "JobTracker will undergo scheduled maintenance on January 25th from 2:00 AM to 4:00 AM EST.",
+    "timestamp": "2025-01-10T18:00:00Z",
+    "read": true,
+    "actions": []
+  }
+]
