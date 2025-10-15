@@ -1,0 +1,72 @@
+export const mockJobs = [
+  { 
+    id: 1, 
+    title: 'Frontend Developer Intern', 
+    company: 'AceTech Solutions', 
+    location: 'San Francisco, CA',
+    jobType: 'internship',
+    applicants: 12, 
+    avgScore: 79, 
+    status: 'Open', 
+    createdAt: '2025-09-01T10:00:00Z',
+    description: 'Join our frontend team to build amazing user experiences with React and TypeScript.',
+    skills: ['React', 'TypeScript', 'CSS', 'JavaScript'],
+    salary: { min: 25, max: 35, currency: 'USD' }
+  },
+  { 
+    id: 2, 
+    title: 'Data Analyst Intern', 
+    company: 'DataWorks Inc', 
+    location: 'Remote',
+    jobType: 'internship',
+    applicants: 8, 
+    avgScore: 73, 
+    status: 'Open', 
+    createdAt: '2025-09-10T14:30:00Z',
+    description: 'Analyze data trends and create insights that drive business decisions.',
+    skills: ['Python', 'SQL', 'Data Analysis', 'Excel'],
+    salary: { min: 20, max: 28, currency: 'USD' }
+  },
+  { 
+    id: 3, 
+    title: 'Backend Developer Intern', 
+    company: 'InfraLab', 
+    location: 'Austin, TX',
+    jobType: 'internship',
+    applicants: 6, 
+    avgScore: 75, 
+    status: 'Closed', 
+    createdAt: '2025-08-22T09:15:00Z',
+    description: 'Build scalable backend systems using Node.js and cloud technologies.',
+    skills: ['Node.js', 'PostgreSQL', 'AWS', 'Docker'],
+    salary: { min: 22, max: 30, currency: 'USD' }
+  },
+  { 
+    id: 4, 
+    title: 'UI/UX Design Intern', 
+    company: 'DesignCo', 
+    location: 'New York, NY',
+    jobType: 'internship',
+    applicants: 15, 
+    avgScore: 82, 
+    status: 'Open', 
+    createdAt: '2025-09-05T16:45:00Z',
+    description: 'Create beautiful and intuitive user interfaces for web and mobile applications.',
+    skills: ['Figma', 'Adobe XD', 'Prototyping', 'User Research'],
+    salary: { min: 18, max: 25, currency: 'USD' }
+  },
+  { 
+    id: 5, 
+    title: 'Full Stack Developer', 
+    company: 'TechStart', 
+    location: 'Seattle, WA',
+    jobType: 'full-time',
+    applicants: 23, 
+    avgScore: 85, 
+    status: 'Open', 
+    createdAt: '2025-08-28T11:20:00Z',
+    description: 'Work on both frontend and backend development in a fast-paced startup environment.',
+    skills: ['React', 'Node.js', 'MongoDB', 'TypeScript', 'AWS'],
+    salary: { min: 80000, max: 120000, currency: 'USD' }
+  }
+];
