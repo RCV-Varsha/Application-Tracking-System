@@ -1,0 +1,44 @@
+{
+  "id": "stu_101",
+  "profileHeader": {
+    "avatar": "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150",
+    "name": "John Doe",
+    "role": "Student",
+    "email": "johndoe@email.com",
+    "phone": "+91 9876543210"
+  },
+  "personalInfo": {
+    "fullName": "John Doe",
+    "gender": "Male",
+    "dob": "2002-07-15",
+    "address": "RGUKT Ongole, Andhra Pradesh, India"
+  },
+  "academicInfo": {
+    "university": "RGUKT Ongole",
+    "branch": "Computer Science Engineering",
+    "year": "3rd Year",
+    "gpa": "8.4",
+    "certifications": ["AWS Cloud Practitioner", "Python Data Science Certificate", "React Developer Certification"]
+  },
+  "careerPreferences": {
+    "preferredRoles": ["Frontend Developer", "Full Stack Developer", "Software Engineer"],
+    "jobType": "Full-time",
+    "locations": ["Hyderabad", "Bangalore", "Remote"]
+  },
+  "resumeAndSkills": {
+    "resumeUrl": "https://example.com/resume.pdf",
+    "resumeName": "John_Doe_Resume_2024.pdf",
+    "lastUpdated": "2024-01-15T10:00:00Z",
+    "skills": ["React", "JavaScript", "TypeScript", "Python", "MySQL", "TailwindCSS", "Node.js", "Git"]
+  },
+  "activitySummary": {
+    "applicationsSubmitted": 12,
+    "resumesAnalyzed": 3,
+    "jobsSaved": 5,
+    "feedbackReceived": 2
+  },
+  "privacyControls": {
+    "showProfileToRecruiters": true,
+    "emailJobSuggestions": false
+  }
+}
