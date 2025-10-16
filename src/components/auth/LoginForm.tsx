@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Eye, EyeOff, LogIn, UserPlus } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Button } from '../ui/Button';
-import { Card } from '../ui/Card';
-import axiosInstance from '../../api/axiosInstance';
+import { Button } from '../ui/Button'; 
+import { Card } from '../ui/Card'; 
+import axiosInstance from '../../api/axiosInstance'; 
+import { useAuthStore } from '../../store/authStore'; 
 
 type FormMode = 'signin' | 'signup';
 type UserRole = 'student' | 'recruiter' | 'admin';
@@ -21,6 +22,7 @@ export const LoginForm: React.FC = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
+  const { login } = useAuthStore(); // Get login action from Zustand store
   const navigate = useNavigate();
 
   const validateEmail = (email: string): boolean => {
@@ -51,30 +53,26 @@ export const LoginForm: React.FC = () => {
     }
 
     try {
-      const response = await axiosInstance.post('/auth/login', {
-        email,
-        password,
-        role
-      });
-
-      const { token, user } = response.data;
-
-      localStorage.setItem('authToken', token);
-      localStorage.setItem('user', JSON.stringify(user));
-
+      // CRITICAL FIX: Use the store's login action. 
+      // This ensures global state is updated immediately for correct routing.
+      await login(email, password, role); 
+      
       setSuccess('Login successful! Redirecting...');
 
+      // Navigate based on the selected role
       setTimeout(() => {
-        if (user.role === 'recruiter') {
+        if (role === 'recruiter') {
           navigate('/recruiter/dashboard');
-        } else if (user.role === 'admin') {
+        } else if (role === 'admin') {
           navigate('/admin/dashboard');
         } else {
+          // Defaults to student dashboard
           navigate('/dashboard');
         }
       }, 500);
     } catch (err: any) {
-      const errorMessage = err.response?.data?.message || 'Invalid credentials. Please try again.';
+      // The error is now thrown by the store's login action (which handles the Axios response).
+      const errorMessage = err.message || 'Invalid credentials or user role. Please try again.';
       setError(errorMessage);
     } finally {
       setLoading(false);
@@ -112,6 +110,7 @@ export const LoginForm: React.FC = () => {
     }
 
     try {
+      // Using axiosInstance directly for signup as it doesn't need to update global auth state yet
       const response = await axiosInstance.post('/auth/signup', {
         name,
         email,

@@ -4,7 +4,7 @@ import clsx from 'clsx';
 import { Loader2 } from 'lucide-react';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
+  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger'|'success';
   size?: 'sm' | 'md' | 'lg';
   loading?: boolean;
   children: React.ReactNode;
@@ -26,7 +26,8 @@ export const Button: React.FC<ButtonProps> = ({
     secondary: 'bg-gray-100 text-gray-900 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-100 dark:hover:bg-gray-700',
     outline: 'border border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800',
     ghost: 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800',
-    danger: 'bg-red-600 text-white hover:bg-red-700 shadow-sm hover:shadow-md'
+    danger: 'bg-red-600 text-white hover:bg-red-700 shadow-sm hover:shadow-md',
+    success: "bg-green-600 hover:bg-green-700 text-white",
   };
   
   const sizeClasses = {
@@ -35,22 +36,23 @@ export const Button: React.FC<ButtonProps> = ({
     lg: 'px-6 py-3 text-base'
   };
 
-  return (
-    <motion.button
-      whileTap={{ scale: 0.98 }}
-      className={clsx(
-        baseClasses,
-        variantClasses[variant],
-        sizeClasses[size],
-        className
-      )}
-      disabled={disabled || loading}
-      {...props}
-    >
-      {loading && (
-        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-      )}
-      {children}
-    </motion.button>
-  );
+return (
+  <motion.button
+    whileTap={{ scale: 0.98 }}
+    className={clsx(
+      baseClasses,
+      variantClasses[variant],
+      sizeClasses[size],
+      className
+    )}
+    disabled={disabled || loading}
+    {...(props as any)} // ✅ TypeScript-safe fix for Framer Motion conflicts
+  >
+    {loading && (
+      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+    )}
+    {children}
+  </motion.button>
+);
+
 };

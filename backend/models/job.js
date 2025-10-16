@@ -1,17 +1,46 @@
-import mongoose from "mongoose";
+import mongoose from 'mongoose';
 
-const jobSchema = new mongoose.Schema({
-  title: { type: String, required: true },
-  company: { type: String, required: true },
-  location: { type: String, required: true },
-  type: { type: String, enum: ['full-time', 'part-time', 'internship', 'contract'], required: true },
-  description: { type: String, required: true },
-  requirements: [{ type: String }],
-  salary_min: { type: Number },
-  salary_max: { type: Number },
-  posted_by: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  status: { type: String, enum: ['active', 'closed', 'draft'], default: 'active' },
+const JobSchema = new mongoose.Schema({
+  title: {
+    type: String,
+    required: [true, 'Job title is required'],
+    trim: true,
+  },
+  company: {
+    type: String,
+    required: [true, 'Company name is required'],
+  },
+  location: {
+    type: String,
+    required: [true, 'Location is required'],
+  },
+  salary: {
+    type: String,
+  },
+  jobType: {
+    type: String,
+    enum: ['Full-Time', 'Part-Time', 'Internship', 'Contract'],
+    required: [true, 'Job type is required'],
+  },
+  description: {
+    type: String,
+    required: [true, 'Job description is required'],
+  },
+  requiredSkills: {
+    type: [String],
+  },
+  // CRITICAL: Reference to the Recruiter (User) who posted the job
+  postedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true,
+  },
+  applicationsCount: {
+    type: Number,
+    default: 0,
+  }
 }, { timestamps: true });
 
-const Job = mongoose.model("Job", jobSchema);
+const Job = mongoose.model('Job', JobSchema);
+
 export default Job;

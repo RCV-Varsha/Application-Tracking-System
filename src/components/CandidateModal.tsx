@@ -22,15 +22,35 @@ import { Badge } from './ui/Badge';
 interface CandidateModalProps {
   isOpen: boolean;
   onClose: () => void;
-  applicant: Applicant;
+  applicant: {
+    id: number;
+    name: string;
+    email: string;
+    appliedAt: string;
+    resumeUrl: string;
+    score: number;
+    match: number;
+    status: 'Pending' | 'Reviewed' | 'Interviewing' | 'Rejected' | 'Accepted';
+    parsed: {
+      experience: string[];
+      education: string[];
+    };
+    skills: string[];
+    grammarIssues: string[];
+  };
   jobId: number;
+  onStatusUpdate?: (appId: number | string, status: 'Pending' | 'Reviewed' | 'Interviewing' | 'Rejected' | 'Accepted') => void; // ✅ add this
+  isUpdating?: boolean;
 }
+
 
 export const CandidateModal: React.FC<CandidateModalProps> = ({
   isOpen,
   onClose,
   applicant,
-  jobId
+  jobId,
+    onStatusUpdate, // ✅ now exists
+  isUpdating,
 }) => {
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState('');

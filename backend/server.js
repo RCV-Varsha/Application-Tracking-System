@@ -3,6 +3,9 @@ import mongoose from "mongoose";
 import cors from "cors";
 import dotenv from "dotenv";
 import authRoutes from "./routes/auth.js";
+import jobRoutes from "./routes/jobs.js"; // Import Job Routes
+import applicationRoutes from "./routes/applications.js"; // Import Application Routes
+import adminRoutes from "./routes/admin.js"; // Import Admin Routes
 
 dotenv.config();
 
@@ -41,9 +44,14 @@ mongoose.connection.on("reconnected", () => {
 
 // ✅ Routes
 app.use("/api/auth", authRoutes);
+app.use("/api/jobs", jobRoutes); // Use Job Routes
+app.use("/api/applications", applicationRoutes); // Use Application Routes
+app.use("/api/admin", adminRoutes); // Use Admin Routes
 
 // ✅ Health check
 app.get("/api/health", (req, res) => {
+// ... (rest of the health check logic)
+// ... (omitted for brevity)
   res.json({
     status: "healthy",
     timestamp: new Date().toISOString(),

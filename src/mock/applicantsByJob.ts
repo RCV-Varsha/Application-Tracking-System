@@ -6,7 +6,7 @@ export interface Applicant {
   score: number;
   match: number;
   skills: string[];
-  status: 'Under Review' | 'Shortlisted' | 'Rejected' | 'Request Update';
+  status: 'Pending' | 'Reviewed' | 'Interviewing' | 'Rejected' | 'Accepted';
   resumeUrl: string;
   parsed: {
     experience: string[];
@@ -25,7 +25,7 @@ export const applicantsByJob: Record<number, Applicant[]> = {
       score: 86,
       match: 92,
       skills: ["React", "TypeScript", "Node.js"],
-      status: "Under Review",
+      status: "Reviewed",
       resumeUrl: "/mock/resumes/aarav-mehta.pdf",
       parsed: {
         experience: ["Frontend Intern at TechNova", "Freelancer – UI Dev"],
@@ -41,7 +41,7 @@ export const applicantsByJob: Record<number, Applicant[]> = {
       score: 74,
       match: 80,
       skills: ["Python", "Flask", "SQL"],
-      status: "Shortlisted",
+      status: "Interviewing",
       resumeUrl: "/mock/resumes/sneha-reddy.pdf",
       parsed: {
         experience: ["Backend Intern – CodeWave"],
@@ -57,7 +57,7 @@ export const applicantsByJob: Record<number, Applicant[]> = {
       score: 91,
       match: 95,
       skills: ["React", "Node.js", "MongoDB", "GraphQL"],
-      status: "Shortlisted",
+      status: "Interviewing",
       resumeUrl: "/mock/resumes/rahul-kumar.pdf",
       parsed: {
         experience: ["Full Stack Developer at StartupXYZ", "Frontend Developer at WebCorp"],
@@ -89,7 +89,7 @@ export const applicantsByJob: Record<number, Applicant[]> = {
       score: 82,
       match: 88,
       skills: ["React", "TypeScript", "AWS", "Docker"],
-      status: "Under Review",
+      status: "Reviewed",
       resumeUrl: "/mock/resumes/arjun-patel.pdf",
       parsed: {
         experience: ["DevOps Intern at CloudScale", "Full Stack Intern at TechHub"],
@@ -105,7 +105,7 @@ export const applicantsByJob: Record<number, Applicant[]> = {
       score: 79,
       match: 84,
       skills: ["Vue.js", "JavaScript", "Node.js", "PostgreSQL"],
-      status: "Request Update",
+      status: "Pending",
       resumeUrl: "/mock/resumes/neha-sharma.pdf",
       parsed: {
         experience: ["Frontend Developer at WebSolutions", "Intern at DigitalCraft"],
@@ -123,7 +123,7 @@ export const applicantsByJob: Record<number, Applicant[]> = {
       score: 88,
       match: 90,
       skills: ["Python", "Django", "PostgreSQL", "Redis"],
-      status: "Under Review",
+      status: "Reviewed",
       resumeUrl: "/mock/resumes/vikram-desai.pdf",
       parsed: {
         experience: ["Backend Developer at DataSystems", "Python Developer at AILabs"],
@@ -139,7 +139,7 @@ export const applicantsByJob: Record<number, Applicant[]> = {
       score: 92,
       match: 94,
       skills: ["Python", "FastAPI", "Docker", "Kubernetes"],
-      status: "Shortlisted",
+      status: "Interviewing",
       resumeUrl: "/mock/resumes/ananya-iyer.pdf",
       parsed: {
         experience: ["Senior Backend Engineer at CloudTech", "Backend Lead at ScaleSystems"],
