@@ -5,8 +5,13 @@ import User from "../models/User.js";
 
 const router = express.Router();
 
+// --- TEMPORARY FIX: HARDCODING SECRET TO BYPASS .env READ ERRORS ---
+// This must match the FIXED_SECRET in the backend/middleware/auth.js file exactly.
+const FIXED_SECRET = "DEV_BYPASS_SECRET_ATS"; 
+
 const generateToken = (userId, role) => {
-  return jwt.sign({ userId, role }, process.env.JWT_SECRET, { expiresIn: "7d" });
+  // Sign the token using the hardcoded secret
+  return jwt.sign({ userId, role }, FIXED_SECRET, { expiresIn: "7d" });
 };
 
 // 🧾 SIGNUP
@@ -84,10 +89,14 @@ router.post(
 // 🙍 GET CURRENT USER
 router.get("/me", async (req, res) => {
   try {
+    // Note: This endpoint is often handled by middleware, but if called directly,
+    // we need to use the fixed secret to verify the token sent by the client.
     const token = req.headers.authorization?.split(" ")[1];
     if (!token) return res.status(401).json({ message: "Authentication required" });
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    // Verify token using the hardcoded secret
+    const decoded = jwt.verify(token, FIXED_SECRET); 
+
     const user = await User.findById(decoded.userId).select("-password");
     if (!user) return res.status(401).json({ message: "User not found" });
 
