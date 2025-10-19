@@ -9,7 +9,7 @@ const router = express.Router();
 
 // Student applies for a job
 router.post('/apply/:jobId', authenticate, authorize('student'), async (req, res) => {
-  const { resumeUrl, coverLetter } = req.body;
+  const { resumeUrl, coverLetter, aiScore, analysis } = req.body;
   const jobId = req.params.jobId;
 
   try {
@@ -29,6 +29,8 @@ router.post('/apply/:jobId', authenticate, authorize('student'), async (req, res
       recruiter: job.postedBy,
       resumeUrl,
       coverLetter,
+      aiScore,
+      analysis,
       status: 'Pending',
     });
 
@@ -58,7 +60,8 @@ router.get('/job/:jobId', authenticate, authorize('recruiter', 'admin'), async (
 
     const applications = await Application.find({ job: jobId })
       .populate('student', 'name email phone role')
-      .select('-coverLetter -resumeUrl')
+      // include resumeUrl and analysis for recruiter view
+      .select('-coverLetter')
       .sort({ appliedDate: 1 });
 
     res.json(applications);
@@ -105,5 +108,18 @@ router.put('/:appId/status',
     }
   }
 );
+
+// GET current student's applications (for student dashboard)
+router.get('/me', authenticate, authorize('student'), async (req, res) => {
+  try {
+    const applications = await Application.find({ student: req.user._id })
+      .populate('job', 'title company')
+      .sort({ appliedDate: -1 });
+    res.json(applications);
+  } catch (err) {
+    console.error('Get my applications error:', err.message);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
 
 export default router;

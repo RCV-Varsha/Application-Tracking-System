@@ -91,17 +91,16 @@ export const RecruiterDashboard: React.FC = () => {
 
   // React Query for fetching overview data
   // Key: ["recruiter", "overview"] - used for caching and invalidation
-  const { data: overview, isLoading, error } = useQuery({
+  const { data: overview, isLoading, error } = useQuery<any, Error>({
     queryKey: ['recruiter', 'overview'],
     queryFn: getRecruiterOverview,
     staleTime: 5 * 60 * 1000, // 5 minutes
-    cacheTime: 10 * 60 * 1000, // 10 minutes
   });
 
   // Mutation for shortlisting applicants
   const shortlistMutation = useMutation({
     mutationFn: shortlistApplicant,
-    onSuccess: (data) => {
+    onSuccess: () => {
       // Invalidate and refetch overview data to update UI
       queryClient.invalidateQueries({ queryKey: ['recruiter', 'overview'] });
       showToast('Applicant shortlisted successfully!', 'success');
@@ -115,6 +114,18 @@ export const RecruiterDashboard: React.FC = () => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
   };
+
+  // Defensive defaults merged with any partial overview returned by the API.
+  // This ensures nested fields (arrays/objects) are always present.
+  const overviewDefaults = {
+    kpis: { totalJobs: 0, openApplications: 0, shortlisted: 0, avgResumeScore: 0 },
+    recentApplicants: [] as any[],
+    jobsSnapshot: [] as any[],
+    applicantsOverTime: [] as any[],
+    statusBreakdown: [] as any[],
+  };
+
+  const overviewSafe: any = { ...overviewDefaults, ...(overview || {}) };
 
   const handleShortlist = (applicantId: number) => {
     shortlistMutation.mutate(applicantId);
@@ -200,14 +211,14 @@ export const RecruiterDashboard: React.FC = () => {
           animate={{ opacity: 1, y: 0 }}
           className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
         >
-          <Card hover className="p-6">
+                  <Card hover className="p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
                   Total Jobs
                 </p>
                 <p className="text-3xl font-bold text-gray-900 dark:text-white mt-2">
-                  {overview?.kpis.totalJobs}
+                  {overviewSafe.kpis.totalJobs}
                 </p>
                 <p className="text-sm text-green-600 dark:text-green-400 mt-1">
                   +2 this month
@@ -226,7 +237,7 @@ export const RecruiterDashboard: React.FC = () => {
                   Open Applications
                 </p>
                 <p className="text-3xl font-bold text-gray-900 dark:text-white mt-2">
-                  {overview?.kpis.openApplications}
+                  {overviewSafe.kpis.openApplications}
                 </p>
                 <p className="text-sm text-green-600 dark:text-green-400 mt-1">
                   +12 this week
@@ -245,7 +256,7 @@ export const RecruiterDashboard: React.FC = () => {
                   Shortlisted
                 </p>
                 <p className="text-3xl font-bold text-gray-900 dark:text-white mt-2">
-                  {overview?.kpis.shortlisted}
+                  {overviewSafe.kpis.shortlisted}
                 </p>
                 <p className="text-sm text-green-600 dark:text-green-400 mt-1">
                   +3 today
@@ -264,7 +275,7 @@ export const RecruiterDashboard: React.FC = () => {
                   Avg Resume Score
                 </p>
                 <p className="text-3xl font-bold text-gray-900 dark:text-white mt-2">
-                  {overview?.kpis.avgResumeScore}
+                  {overviewSafe.kpis.avgResumeScore}
                 </p>
                 <p className="text-sm text-green-600 dark:text-green-400 mt-1">
                   +5 pts this month
@@ -304,7 +315,7 @@ export const RecruiterDashboard: React.FC = () => {
                   </Link>
                 </div>
 
-                {overview?.recentApplicants.length === 0 ? (
+                {overviewSafe.recentApplicants.length === 0 ? (
                   <div className="text-center py-12">
                     <Users className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
@@ -314,7 +325,7 @@ export const RecruiterDashboard: React.FC = () => {
                       Share your job links to start receiving applications
                     </p>
                     <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                      {overview?.jobsSnapshot.map((job) => (
+                      {(overviewSafe.jobsSnapshot || []).map((job: any) => (
                         <Button
                           key={job.id}
                           variant="outline"
@@ -334,7 +345,7 @@ export const RecruiterDashboard: React.FC = () => {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {overview?.recentApplicants.map((applicant, index) => {
+                    {(overviewSafe.recentApplicants || []).map((applicant: any, index: number) => {
                       const avatar = generateAvatar(applicant.name);
                       return (
                         <motion.div
@@ -372,8 +383,8 @@ export const RecruiterDashboard: React.FC = () => {
                               <Button
                                 size="sm"
                                 onClick={() => handleShortlist(applicant.id)}
-                                disabled={shortlistMutation.isLoading}
-                                loading={shortlistMutation.isLoading && shortlistMutation.variables === applicant.id}
+                                disabled={Boolean((shortlistMutation as any).isLoading)}
+                                loading={Boolean((shortlistMutation as any).isLoading) && (shortlistMutation as any).variables === applicant.id}
                                 aria-label={`Shortlist ${applicant.name}`}
                               >
                                 <UserCheck className="w-4 h-4 mr-1" />
@@ -416,7 +427,7 @@ export const RecruiterDashboard: React.FC = () => {
                   </Link>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {overview?.jobsSnapshot.map((job, index) => (
+                  {(overviewSafe.jobsSnapshot || []).map((job: any, index: number) => (
                     <motion.div
                       key={job.id}
                       initial={{ opacity: 0, scale: 0.95 }}
@@ -470,7 +481,7 @@ export const RecruiterDashboard: React.FC = () => {
                     Applicants This Week
                   </h3>
                   <ResponsiveContainer width="100%" height={200}>
-                    <LineChart data={overview?.applicantsOverTime}>
+                    <LineChart data={overviewSafe.applicantsOverTime}>
                       <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
                       <XAxis 
                         dataKey="day" 
@@ -517,7 +528,7 @@ export const RecruiterDashboard: React.FC = () => {
                   <ResponsiveContainer width="100%" height={200}>
                     <PieChart>
                       <Pie
-                        data={overview?.statusBreakdown}
+                        data={overviewSafe.statusBreakdown}
                         cx="50%"
                         cy="50%"
                         innerRadius={50}
@@ -525,7 +536,7 @@ export const RecruiterDashboard: React.FC = () => {
                         paddingAngle={5}
                         dataKey="value"
                       >
-                        {overview?.statusBreakdown.map((entry, index) => (
+                        {(overviewSafe.statusBreakdown || []).map((entry: any, index: number) => (
                           <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
                       </Pie>
@@ -540,7 +551,7 @@ export const RecruiterDashboard: React.FC = () => {
                     </PieChart>
                   </ResponsiveContainer>
                   <div className="mt-4 space-y-2">
-                    {overview?.statusBreakdown.map((item, index) => (
+                    {(overviewSafe.statusBreakdown || []).map((item: any, index: number) => (
                       <div key={index} className="flex items-center justify-between text-sm">
                         <div className="flex items-center space-x-2">
                           <div 

@@ -15,11 +15,11 @@ import {
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
-import { adminOverview } from '../../mock/adminOverview';
+import axiosInstance from '../../api/axiosInstance';
 
 const fetchAdminOverview = async () => {
-  await new Promise(resolve => setTimeout(resolve, 800));
-  return adminOverview;
+  const resp = await axiosInstance.get('/admin/overview');
+  return resp.data;
 };
 
 const KPICard: React.FC<{

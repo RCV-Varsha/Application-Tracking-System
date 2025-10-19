@@ -59,17 +59,23 @@ export const LoginForm: React.FC = () => {
       
       setSuccess('Login successful! Redirecting...');
 
-      // Navigate based on the selected role
+      // Navigate based on the authenticated user's role stored in localStorage (more reliable)
       setTimeout(() => {
-        if (role === 'recruiter') {
-          navigate('/recruiter/dashboard');
-        } else if (role === 'admin') {
-          navigate('/admin/dashboard');
-        } else {
-          // Defaults to student dashboard
+        try {
+          const userStr = localStorage.getItem('user');
+          const storedUser = userStr ? JSON.parse(userStr) : null;
+          const userRole = storedUser?.role?.toString().toLowerCase();
+          if (userRole === 'recruiter') {
+            navigate('/recruiter/dashboard');
+          } else if (userRole === 'admin') {
+            navigate('/admin/dashboard');
+          } else {
+            navigate('/dashboard');
+          }
+        } catch (e) {
           navigate('/dashboard');
         }
-      }, 500);
+      }, 400);
     } catch (err: any) {
       // The error is now thrown by the store's login action (which handles the Axios response).
       const errorMessage = err.message || 'Invalid credentials or user role. Please try again.';
@@ -111,7 +117,7 @@ export const LoginForm: React.FC = () => {
 
     try {
       // Using axiosInstance directly for signup as it doesn't need to update global auth state yet
-      const response = await axiosInstance.post('/auth/signup', {
+      await axiosInstance.post('/auth/signup', {
         name,
         email,
         password,

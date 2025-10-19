@@ -1,7 +1,7 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import axiosInstance from '../../api/axiosInstance';
-import { Clock, FileText, Zap, UserCheck, XCircle, Briefcase } from 'lucide-react';
+import { Clock, FileText, UserCheck, XCircle, Briefcase } from 'lucide-react';
 import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { Loader2 } from 'lucide-react';

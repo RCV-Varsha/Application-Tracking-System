@@ -1,5 +1,6 @@
 import { recruiterOverview } from '../mock/recruiterOverview';
 import { mockJobs } from '../mock/jobs';
+import axiosInstance from '../api/axiosInstance';
 
 // Mock job store for persistence
 let jobIdCounter = 100;
@@ -11,9 +12,41 @@ const jobsStore: any[] = []; // for mock persistence in this module
  * TODO: Replace with real API calls when backend is ready
  */
 export async function getRecruiterOverview() {
-  // Simulate network delay for realistic loading states
-  await new Promise((resolve) => setTimeout(resolve, 700));
-  return recruiterOverview;
+  try {
+    // Fetch all jobs (backend returns postedBy) and filter by current user
+    const userStr = localStorage.getItem('user');
+    const user = userStr ? JSON.parse(userStr) : null;
+    const resp = await axiosInstance.get('/jobs');
+    const jobs = resp.data || [];
+    const myJobs = user ? jobs.filter((j: any) => String(j.postedBy) === String(user.id) || j.postedBy === user.id) : [];
+
+    // For each job fetch applicants count
+    const applicantsPromises = myJobs.map(async (job: any) => {
+      try {
+        const a = await axiosInstance.get(`/applications/job/${job._id || job.id}`);
+        return { jobId: job._id || job.id, applicants: a.data || [] };
+      } catch (err) {
+        return { jobId: job._id || job.id, applicants: [] };
+      }
+    });
+
+    const applicantsByJob = await Promise.all(applicantsPromises);
+
+    const totalJobs = myJobs.length;
+    const openApplications = applicantsByJob.reduce((s: number, jb: any) => s + (jb.applicants?.length || 0), 0);
+    const shortlisted = applicantsByJob.reduce((s: number, jb: any) => s + (jb.applicants?.filter((a: any) => a.status === 'Shortlisted').length || 0), 0);
+    const avgResumeScore = 0; // placeholder: scoring requires additional data
+
+    return {
+      kpis: { totalJobs, openApplications, shortlisted, avgResumeScore },
+      recentApplicants: applicantsByJob.flatMap((jb: any) => jb.applicants).slice(0, 10),
+      jobsSnapshot: myJobs.map((j: any) => ({ id: j._id || j.id, title: j.title, applicants: (applicantsByJob.find((x: any) => x.jobId === (j._id || j.id))?.applicants || []).length, avgScore: 0 }))
+    };
+  } catch (err) {
+    // Fallback to mock overview when API unavailable
+    await new Promise((resolve) => setTimeout(resolve, 700));
+    return recruiterOverview;
+  }
 }
 
 /**
@@ -22,23 +55,17 @@ export async function getRecruiterOverview() {
  * TODO: Replace with real API endpoint
  */
 export async function shortlistApplicant(applicantId: number) {
-  // Simulate API call
-  await new Promise((resolve) => setTimeout(resolve, 300));
-  
-  // Update mock data (in real app, this would be handled by the backend)
-  const applicant = recruiterOverview.recentApplicants.find(a => a.id === applicantId);
-  if (applicant) {
-    applicant.status = 'shortlisted';
-    // Update KPI counts
-    recruiterOverview.kpis.shortlisted += 1;
-    // Update status breakdown
-    const shortlistedStatus = recruiterOverview.statusBreakdown.find(s => s.name === 'Shortlisted');
-    const underReviewStatus = recruiterOverview.statusBreakdown.find(s => s.name === 'Under Review');
-    if (shortlistedStatus) shortlistedStatus.value += 1;
-    if (underReviewStatus) underReviewStatus.value -= 1;
+  try {
+    // Update application status to Shortlisted
+    const resp = await axiosInstance.put(`/applications/${applicantId}/status`, { status: 'Shortlisted' });
+    return resp.data;
+  } catch (err) {
+    // Fallback to mock behaviour
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    const applicant = recruiterOverview.recentApplicants.find(a => a.id === applicantId);
+    if (applicant) applicant.status = 'shortlisted';
+    return { success: true, applicantId };
   }
-  
-  return { success: true, applicantId };
 }
 
 /**
@@ -47,21 +74,40 @@ export async function shortlistApplicant(applicantId: number) {
  * TODO: Replace with real API endpoint
  */
 export async function createJob(jobPayload: any) {
-  // Simulate API call delay
-  await new Promise((resolve) => setTimeout(resolve, 500));
-  
-  const job = { 
-    id: jobIdCounter++, 
-    createdAt: new Date().toISOString(),
-    status: jobPayload.isDraft ? 'draft' : 'published',
-    applicantCount: 0,
-    ...jobPayload 
-  };
-  
-  jobsStore.push(job);
-  
-  // In a real app, this would return the created job from the API
-  return job;
+  // Try real API first
+  try {
+    // Normalize field names expected by backend: 'type', 'requirements', 'salary_min', 'salary_max'
+    const payloadToSend = {
+      title: jobPayload.title,
+      company: jobPayload.company,
+      location: jobPayload.location,
+      type: jobPayload.jobType || jobPayload.type,
+      description: jobPayload.description,
+      requirements: jobPayload.skills || jobPayload.requirements || [],
+      salary_min: jobPayload.salaryMin ?? jobPayload.salary_min ?? null,
+      salary_max: jobPayload.salaryMax ?? jobPayload.salary_max ?? null,
+      isDraft: jobPayload.isDraft,
+      currency: jobPayload.currency,
+      isRemote: jobPayload.isRemote,
+      experienceLevel: jobPayload.experienceLevel,
+      deadline: jobPayload.deadline
+    };
+
+    const resp = await axiosInstance.post('/jobs', payloadToSend);
+    return resp.data;
+  } catch (err) {
+    // Fallback to mock behaviour if API unavailable
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    const job = {
+      id: jobIdCounter++,
+      createdAt: new Date().toISOString(),
+      status: jobPayload.isDraft ? 'draft' : 'published',
+      applicantCount: 0,
+      ...jobPayload
+    };
+    jobsStore.push(job);
+    return job;
+  }
 }
 
 /**
@@ -95,8 +141,17 @@ export async function getAnalytics(range: '7' | '30' | 'custom', customStart?: s
  * TODO: Replace with real API endpoint
  */
 export async function getRecruiterJobs() {
-  await new Promise((resolve) => setTimeout(resolve, 300));
-  return [...jobsStore, ...mockJobs]; // Combine created jobs with mock data
+  try {
+    const resp = await axiosInstance.get('/jobs');
+    const userStr = localStorage.getItem('user');
+    const user = userStr ? JSON.parse(userStr) : null;
+    const jobs = resp.data || [];
+    if (!user) return jobs;
+    return jobs.filter((j: any) => String(j.postedBy) === String(user.id) || j.postedBy === user.id);
+  } catch (err) {
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    return [...jobsStore, ...mockJobs];
+  }
 }
 
 /**
@@ -153,32 +208,61 @@ export async function deleteJob(jobId: number) {
  * TODO: Replace with real API calls when backend is ready; keep same function names and React Query keys
  */
 export async function getJobApplicants(jobId: number, filters?: any) {
-  await new Promise((resolve) => setTimeout(resolve, 600));
-  const { applicantsByJob } = await import('../mock/applicantsByJob');
-  let applicants = applicantsByJob[jobId] || [];
+  try {
+    const resp = await axiosInstance.get(`/applications/job/${jobId}`);
+    let applicants = resp.data || [];
 
-  if (filters) {
-    if (filters.status) {
-      applicants = applicants.filter((a: any) => a.status === filters.status);
+    if (filters) {
+      if (filters.status) {
+        applicants = applicants.filter((a: any) => a.status === filters.status);
+      }
+      if (filters.minScore !== undefined) {
+        applicants = applicants.filter((a: any) => a.score >= filters.minScore);
+      }
+      if (filters.skills && filters.skills.length > 0) {
+        applicants = applicants.filter((a: any) =>
+          filters.skills.some((skill: string) => (a.skills || []).includes(skill))
+        );
+      }
+      if (filters.search) {
+        const searchLower = filters.search.toLowerCase();
+        applicants = applicants.filter((a: any) =>
+          (a.name || '').toLowerCase().includes(searchLower) ||
+          (a.email || '').toLowerCase().includes(searchLower)
+        );
+      }
     }
-    if (filters.minScore !== undefined) {
-      applicants = applicants.filter((a: any) => a.score >= filters.minScore);
+
+    return applicants;
+  } catch (err) {
+    // fallback to local mock data
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    const { applicantsByJob } = await import('../mock/applicantsByJob');
+    let applicants = applicantsByJob[jobId] || [];
+
+    if (filters) {
+      if (filters.status) {
+        applicants = applicants.filter((a: any) => a.status === filters.status);
+      }
+      if (filters.minScore !== undefined) {
+        applicants = applicants.filter((a: any) => a.score >= filters.minScore);
+      }
+      if (filters.skills && filters.skills.length > 0) {
+        applicants = applicants.filter((a: any) =>
+          filters.skills.some((skill: string) => (a.skills || []).includes(skill))
+        );
+      }
+      if (filters.search) {
+        const searchLower = filters.search.toLowerCase();
+        applicants = applicants.filter((a: any) =>
+          (a.name || '').toLowerCase().includes(searchLower) ||
+          (a.email || '').toLowerCase().includes(searchLower)
+        );
+      }
     }
-    if (filters.skills && filters.skills.length > 0) {
-      applicants = applicants.filter((a: any) =>
-        filters.skills.some((skill: string) => a.skills.includes(skill))
-      );
-    }
-    if (filters.search) {
-      const searchLower = filters.search.toLowerCase();
-      applicants = applicants.filter((a: any) =>
-        a.name.toLowerCase().includes(searchLower) ||
-        a.email.toLowerCase().includes(searchLower)
-      );
-    }
+
+    return applicants;
   }
-
-  return applicants;
 }
 
 /**
@@ -187,16 +271,20 @@ export async function getJobApplicants(jobId: number, filters?: any) {
  * TODO: Replace with real API endpoint
  */
 export async function getApplication(applicantId: number, jobId: number) {
-  await new Promise((resolve) => setTimeout(resolve, 400));
-  const { applicantsByJob } = await import('../mock/applicantsByJob');
-  const jobApplicants = applicantsByJob[jobId];
-  const applicant = jobApplicants?.find((a: any) => a.id === applicantId);
-
-  if (!applicant) {
-    throw new Error('Applicant not found');
+  try {
+    const resp = await axiosInstance.get(`/applications/job/${jobId}`);
+    const applicants = resp.data || [];
+    const applicant = applicants.find((a: any) => String(a._id || a.id) === String(applicantId));
+    if (!applicant) throw new Error('Applicant not found');
+    return applicant;
+  } catch (err) {
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    const { applicantsByJob } = await import('../mock/applicantsByJob');
+    const jobApplicants = applicantsByJob[jobId];
+    const applicant = jobApplicants?.find((a: any) => a.id === applicantId);
+    if (!applicant) throw new Error('Applicant not found');
+    return applicant;
   }
-
-  return applicant;
 }
 
 /**
@@ -205,16 +293,17 @@ export async function getApplication(applicantId: number, jobId: number) {
  * TODO: Replace with real API endpoint
  */
 export async function updateApplicationStatus(applicantId: number, status: string, jobId: number) {
-  await new Promise((resolve) => setTimeout(resolve, 300));
-  const { applicantsByJob } = await import('../mock/applicantsByJob');
-  const jobApplicants = applicantsByJob[jobId];
-  const applicant = jobApplicants?.find((a: any) => a.id === applicantId);
-
-  if (applicant) {
-    applicant.status = status as any;
+  try {
+    const resp = await axiosInstance.put(`/applications/${applicantId}/status`, { status });
+    return resp.data;
+  } catch (err) {
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    const { applicantsByJob } = await import('../mock/applicantsByJob');
+    const jobApplicants = applicantsByJob[jobId];
+    const applicant = jobApplicants?.find((a: any) => a.id === applicantId);
+    if (applicant) applicant.status = status as any;
+    return { success: true, applicantId, status };
   }
-
-  return { success: true, applicantId, status };
 }
 
 /**
@@ -222,9 +311,10 @@ export async function updateApplicationStatus(applicantId: number, status: strin
  * React Query key: N/A (mutation only)
  * TODO: Replace with real API endpoint
  */
-export async function sendFeedback(applicantId: number, message: string, jobId: number) {
+export async function sendFeedback(applicantId: number, message: string, _jobId?: number) {
+  // No backend feedback endpoint available — keep mock behaviour for now
   await new Promise((resolve) => setTimeout(resolve, 400));
-  console.log(`Feedback sent to applicant ${applicantId}: ${message}`);
+  console.log(`Feedback sent to applicant ${applicantId} (job ${_jobId ?? 'N/A'}): ${message}`);
   return { success: true };
 }
 
@@ -234,9 +324,36 @@ export async function sendFeedback(applicantId: number, message: string, jobId: 
  * TODO: Replace with real API endpoint
  */
 export async function exportApplicantsCSV(jobId: number, selectedIds?: number[]) {
-  await new Promise((resolve) => setTimeout(resolve, 500));
-  const { applicantsByJob } = await import('../mock/applicantsByJob');
-  let applicants = applicantsByJob[jobId] || [];
+  try {
+    const resp = await axiosInstance.get(`/applications/job/${jobId}`);
+    let applicants = resp.data || [];
+
+    if (selectedIds && selectedIds.length > 0) {
+      applicants = applicants.filter((a: any) => selectedIds.includes(a.id));
+    }
+
+    const headers = ['Name', 'Email', 'Score', 'Match %', 'Skills', 'Status', 'Applied At'];
+    const rows = applicants.map((a: any) => [
+      a.name,
+      a.email,
+      a.score,
+      a.match,
+      (a.skills || []).join('; '),
+      a.status,
+      new Date(a.appliedAt).toLocaleDateString()
+    ]);
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map((row: any[]) => row.map((cell: any) => `"${cell}"`).join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    return blob;
+  } catch (err) {
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    const { applicantsByJob } = await import('../mock/applicantsByJob');
+    let applicants = applicantsByJob[jobId] || [];
 
   if (selectedIds && selectedIds.length > 0) {
     applicants = applicants.filter((a: any) => selectedIds.includes(a.id));
@@ -253,13 +370,14 @@ export async function exportApplicantsCSV(jobId: number, selectedIds?: number[])
     new Date(a.appliedAt).toLocaleDateString()
   ]);
 
-  const csvContent = [
-    headers.join(','),
-    ...rows.map((row: any[]) => row.map((cell: any) => `"${cell}"`).join(','))
-  ].join('\n');
+    const csvContent = [
+      headers.join(','),
+      ...rows.map((row: any[]) => row.map((cell: any) => `"${cell}"`).join(','))
+    ].join('\n');
 
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-  return blob;
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    return blob;
+  }
 }
 
 /**

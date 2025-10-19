@@ -15,7 +15,6 @@ import {
   AlertCircle,
   XCircle,
   Loader2,
-  Download,
   Eye,
   Send
 } from 'lucide-react';
@@ -23,7 +22,9 @@ import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
 import { mockJobs } from '../../data/mockJobs';
-import { evaluateResume, type ResumeEvaluation } from '../../services/mockEvaluation';
+import { type ResumeEvaluation } from '../../services/mockEvaluation';
+import type { Application, Resume, ResumeAnalysis } from '../../types';
+import { useUploadResume, useApplyToJob, useApplications } from '../../hooks/useApi';
 import { useAuthStore } from '../../store/authStore';
 import { useApplicationStore } from '../../store/applicationStore';
 
@@ -31,17 +32,66 @@ export const JobDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const { addApplication, getApplicationsByUser } = useApplicationStore();
+  const { addApplication } = useApplicationStore(); // keep local store for offline UI
+  const uploadResume = useUploadResume();
+  const applyToJob = useApplyToJob();
+  const { data: myApplications } = useApplications(user?.id || '');
   
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
-  const [evaluation, setEvaluation] = useState<ResumeEvaluation | null>(null);
+  const [evaluation, setEvaluation] = useState<ResumeAnalysis | null>(null);
   const [isEvaluating, setIsEvaluating] = useState(false);
+  const job = mockJobs.find(j => j.id === id);
+
+  const [resumeUrl, setResumeUrl] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState<'view' | 'upload' | 'evaluate' | 'submit'>('view');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const job = mockJobs.find(j => j.id === id);
-  const userApplications = getApplicationsByUser(user?.id || '');
-  const hasApplied = userApplications.some(app => app.jobId === id);
+  const onDrop = useCallback(async (acceptedFiles: File[]) => {
+    const file = acceptedFiles[0];
+    if (file && user) {
+      setUploadedFile(file);
+      setIsEvaluating(true);
+      setCurrentStep('evaluate');
+      try {
+        const resp = await uploadResume.mutateAsync({ userId: user.id, file }) as Resume;
+  // safe access to possible url fields returned from upload
+  const r = resp as unknown as Record<string, unknown>;
+  setResumeUrl((r.url as string) || (r.fileUrl as string) || (r.resumeUrl as string) || null);
+        const analysis = (r.analysis as unknown) as ResumeAnalysis | undefined;
+        const mapped: ResumeEvaluation = {
+          score: analysis?.score ?? 0,
+          matchPercentage: (analysis?.matchPercentage as number) ?? 0,
+          grammarIssues: (analysis?.grammarIssues as string[]) ?? [],
+          missingSections: (analysis?.missingSections as string[]) ?? [],
+          extractedText: (analysis?.extractedText as string) ?? '',
+          keywordMatches: {
+            matched: (analysis?.keywords as string[]) ?? [],
+            missing: []
+          },
+          strengths: (analysis?.strengths as string[]) ?? [],
+          recommendations: (analysis?.suggestions as string[]) ?? []
+        };
+        setEvaluation(mapped);
+      } catch (error) {
+        console.error('Upload/Evaluation failed:', error);
+      } finally {
+        setIsEvaluating(false);
+      }
+    }
+  }, [user, uploadResume]);
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: {
+      'application/pdf': ['.pdf'],
+      'application/msword': ['.doc'],
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx']
+    },
+    multiple: false
+  });
+
+  const userApplications: Application[] = (myApplications as Application[]) || [];
+  const hasApplied = userApplications.some((app) => String((app as unknown as { job?: { _id?: string } }).job?._id || app.jobId) === String(id));
 
   if (!job) {
     return (
@@ -56,34 +106,6 @@ export const JobDetail: React.FC = () => {
     );
   }
 
-  const onDrop = useCallback(async (acceptedFiles: File[]) => {
-    const file = acceptedFiles[0];
-    if (file) {
-      setUploadedFile(file);
-      setIsEvaluating(true);
-      setCurrentStep('evaluate');
-      
-      try {
-        const result = await evaluateResume(file, job);
-        setEvaluation(result);
-      } catch (error) {
-        console.error('Evaluation failed:', error);
-      } finally {
-        setIsEvaluating(false);
-      }
-    }
-  }, [job]);
-
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
-    accept: {
-      'application/pdf': ['.pdf'],
-      'application/msword': ['.doc'],
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx']
-    },
-    multiple: false
-  });
-
   const handleReUpload = () => {
     setUploadedFile(null);
     setEvaluation(null);
@@ -91,31 +113,32 @@ export const JobDetail: React.FC = () => {
   };
 
   const handleSubmitApplication = async () => {
-    if (!user || !uploadedFile || !evaluation) return;
-    
+    if (!user || !uploadedFile || !evaluation || !resumeUrl) return;
+
     setIsSubmitting(true);
-    
-    // Simulate submission delay
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    addApplication({
-      userId: user.id,
-      jobId: job.id,
-      status: 'applied',
-      submittedAt: new Date().toISOString(),
-      timeline: [{
+    try {
+      // Call backend apply with resumeUrl and analysis
+  await applyToJob.mutateAsync({ userId: user.id, jobId: job.id, resumeUrl, analysis: evaluation as unknown as Record<string, unknown> });
+
+      // Keep local store for immediate UX
+      addApplication({
+        userId: user.id,
+        jobId: job.id,
         status: 'applied',
-        date: new Date().toISOString(),
-        note: 'Application submitted with resume analysis'
-      }],
-      resumeId: Date.now().toString(),
-      resumeFilename: uploadedFile.name,
-      resumeScore: evaluation.score,
-      matchPercentage: evaluation.matchPercentage
-    });
-    
-    setIsSubmitting(false);
-    navigate('/applications');
+        submittedAt: new Date().toISOString(),
+        timeline: [{ status: 'applied', date: new Date().toISOString(), note: 'Application submitted with resume analysis' }],
+        resumeId: Date.now().toString(),
+        resumeFilename: uploadedFile.name,
+        resumeScore: evaluation?.score || 0,
+        matchPercentage: evaluation?.matchPercentage || 0
+      });
+
+      navigate('/applications');
+    } catch (err) {
+      console.error('Submit application failed:', err);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const formatSalary = () => {
@@ -420,7 +443,7 @@ export const JobDetail: React.FC = () => {
                           Skill Matches ({evaluation.keywordMatches.matched.length}/{job.skills.length})
                         </h4>
                         <div className="flex flex-wrap gap-1">
-                          {evaluation.keywordMatches.matched.map((skill) => (
+                          {evaluation.keywordMatches.matched.map((skill: string) => (
                             <span
                               key={skill}
                               className="px-2 py-1 bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 text-xs rounded-md"
@@ -428,7 +451,7 @@ export const JobDetail: React.FC = () => {
                               ✓ {skill}
                             </span>
                           ))}
-                          {evaluation.keywordMatches.missing.slice(0, 3).map((skill) => (
+                          {evaluation.keywordMatches.missing.slice(0, 3).map((skill: string) => (
                             <span
                               key={skill}
                               className="px-2 py-1 bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 text-xs rounded-md"
@@ -446,13 +469,13 @@ export const JobDetail: React.FC = () => {
                             Areas for Improvement
                           </h4>
                           <div className="space-y-2">
-                            {evaluation.grammarIssues.slice(0, 2).map((issue, index) => (
+                            {evaluation.grammarIssues.slice(0, 2).map((issue: string, index: number) => (
                               <div key={index} className="flex items-start space-x-2">
                                 <AlertCircle className="w-4 h-4 text-yellow-500 mt-0.5 flex-shrink-0" />
                                 <span className="text-sm text-gray-600 dark:text-gray-400">{issue}</span>
                               </div>
                             ))}
-                            {evaluation.missingSections.map((section, index) => (
+                            {evaluation.missingSections.map((section: string, index: number) => (
                               <div key={index} className="flex items-start space-x-2">
                                 <XCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
                                 <span className="text-sm text-gray-600 dark:text-gray-400">

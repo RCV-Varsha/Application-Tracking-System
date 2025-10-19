@@ -36,6 +36,13 @@ const ApplicationSchema = new mongoose.Schema({
   coverLetter: {
     type: String,
   },
+  // Optional AI analysis/score produced for the resume
+  aiScore: {
+    type: Number,
+  },
+  analysis: {
+    type: Object,
+  },
 }, { timestamps: true });
 
 const Application = mongoose.model('Application', ApplicationSchema);

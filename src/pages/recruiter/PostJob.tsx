@@ -14,7 +14,6 @@ import {
   Save,
   Send,
   X,
-  Plus,
   Check,
   Copy,
   ExternalLink,
@@ -179,8 +178,9 @@ export const PostJob: React.FC = () => {
     onSuccess: (data) => {
       // Invalidate jobs list to refresh data
       queryClient.invalidateQueries({ queryKey: ['recruiter', 'jobs'] });
-      
-      setCreatedJobId(data.id);
+      // Backend may return _id (string) or id (number). Normalize to number when possible.
+      const returnedId = data._id ?? data.id;
+      setCreatedJobId(returnedId ?? null);
       setShowShareModal(true);
       showToast('Job posted successfully!', 'success');
     },
@@ -698,8 +698,9 @@ export const PostJob: React.FC = () => {
             <div className="space-y-4">
               <Button
                 onClick={() => handleSubmit(false)}
-                loading={createJobMutation.isLoading}
-                disabled={createJobMutation.isLoading}
+                loading={createJobMutation.status === 'pending'}
+                disabled={createJobMutation.status === 'pending'}
+                aria-busy={createJobMutation.status === 'pending'}
                 className="w-full"
                 size="lg"
               >
@@ -710,8 +711,9 @@ export const PostJob: React.FC = () => {
               <Button
                 onClick={() => handleSubmit(true)}
                 variant="outline"
-                loading={createJobMutation.isLoading}
-                disabled={createJobMutation.isLoading}
+                loading={createJobMutation.status === 'pending'}
+                disabled={createJobMutation.status === 'pending'}
+                aria-busy={createJobMutation.status === 'pending'}
                 className="w-full"
                 size="lg"
               >

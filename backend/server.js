@@ -2,12 +2,18 @@ import express from "express";
 import mongoose from "mongoose";
 import cors from "cors";
 import dotenv from "dotenv";
+import path from 'path';
+import { fileURLToPath } from 'url';
 import authRoutes from "./routes/auth.js";
 import jobRoutes from "./routes/jobs.js"; // Import Job Routes
 import applicationRoutes from "./routes/applications.js"; // Import Application Routes
 import adminRoutes from "./routes/admin.js"; // Import Admin Routes
+import resumesRoutes from "./routes/resumes.js";
 
-dotenv.config();
+// Load .env located next to this file (backend/.env), not depending on cwd
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.join(__dirname, '.env') });
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -20,17 +26,23 @@ app.use(express.urlencoded({ extended: true }));
 
 let isDbConnected = false;
 
-// ✅ MongoDB connection
-mongoose
-  .connect(MONGO_URI)
-  .then(() => {
-    console.log("✅ MongoDB Connected");
-    isDbConnected = true;
-  })
-  .catch((error) => {
-    console.error("❌ MongoDB connection error:", error.message);
-    isDbConnected = false;
-  });
+// ✅ MongoDB connection (guarded)
+if (MONGO_URI) {
+  // Use an async IIFE to catch connection errors and avoid unhandled rejections
+  (async () => {
+    try {
+      await mongoose.connect(MONGO_URI);
+      console.log("✅ MongoDB Connected");
+      isDbConnected = true;
+    } catch (error) {
+      console.error("❌ MongoDB connection error:", error.message);
+      isDbConnected = false;
+    }
+  })();
+} else {
+  console.warn('⚠️ MONGO_URI not set — running in dev fallback mode (no DB).');
+  isDbConnected = false;
+}
 
 mongoose.connection.on("disconnected", () => {
   console.log("⚠️ MongoDB disconnected");
@@ -47,6 +59,10 @@ app.use("/api/auth", authRoutes);
 app.use("/api/jobs", jobRoutes); // Use Job Routes
 app.use("/api/applications", applicationRoutes); // Use Application Routes
 app.use("/api/admin", adminRoutes); // Use Admin Routes
+app.use('/api/resumes', resumesRoutes);
+
+// Serve uploaded resumes statically
+app.use('/public/resumes', express.static(path.join(__dirname, 'public', 'resumes')));
 
 // ✅ Health check
 app.get("/api/health", (req, res) => {

@@ -57,6 +57,16 @@ export interface Resume {
   };
 }
 
+export interface ResumeAnalysis {
+  score?: number;
+  matchPercentage?: number;
+  grammarIssues?: string[];
+  missingSections?: string[];
+  keywords?: string[];
+  suggestions?: string[];
+  [key: string]: unknown;
+}
+
 export interface Application {
   id: string;
   userId: string;

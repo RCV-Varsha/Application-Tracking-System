@@ -1,16 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { mockJobs, mockResumes, mockApplications, mockNotifications } from '../data/mockData';
-import type { Job, Resume, Application, Notification } from '../types';
-
-// Simulate API delays
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+import axiosInstance from '../api/axiosInstance';
+import type { Job, Resume, Application, Notification, ResumeAnalysis } from '../types';
 
 export const useJobs = () => {
   return useQuery({
     queryKey: ['jobs'],
     queryFn: async (): Promise<Job[]> => {
-      await delay(500);
-      return mockJobs;
+      const resp = await axiosInstance.get('/jobs');
+      return resp.data || [];
     }
   });
 };
@@ -19,8 +16,8 @@ export const useResumes = (userId: string) => {
   return useQuery({
     queryKey: ['resumes', userId],
     queryFn: async (): Promise<Resume[]> => {
-      await delay(300);
-      return mockResumes.filter(resume => resume.userId === userId);
+      // No resume API yet — fallback to empty
+      return [];
     }
   });
 };
@@ -29,8 +26,9 @@ export const useApplications = (userId: string) => {
   return useQuery({
     queryKey: ['applications', userId],
     queryFn: async (): Promise<Application[]> => {
-      await delay(400);
-      return mockApplications.filter(app => app.userId === userId);
+      // Call backend endpoint that returns current student's applications
+      const resp = await axiosInstance.get('/applications/me');
+      return resp.data || [];
     }
   });
 };
@@ -39,8 +37,8 @@ export const useNotifications = (userId: string) => {
   return useQuery({
     queryKey: ['notifications', userId],
     queryFn: async (): Promise<Notification[]> => {
-      await delay(200);
-      return mockNotifications.filter(notif => notif.userId === userId);
+      // Notifications API not implemented; return empty list for now
+      return [];
     }
   });
 };
@@ -49,28 +47,20 @@ export const useApplyToJob = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async ({ userId, jobId, resumeId }: { userId: string; jobId: string; resumeId: string }) => {
-      await delay(1000);
-      
-      const newApplication: Application = {
-        id: Date.now().toString(),
-        userId,
-        jobId,
-        status: 'applied',
-        submittedAt: new Date().toISOString(),
-        timeline: [{
-          status: 'applied',
-          date: new Date().toISOString(),
-          note: 'Application submitted'
-        }],
-        resumeId
-      };
-      
-      mockApplications.push(newApplication);
-      return newApplication;
+  mutationFn: async (payload: { userId: string; jobId: string; resumeUrl: string; analysis?: ResumeAnalysis }) => {
+      // Call backend apply endpoint (student only) and include analysis if present
+      const { jobId, resumeUrl, analysis } = payload;
+      const body: Record<string, unknown> = { resumeUrl, coverLetter: '' };
+      if (analysis && typeof analysis === 'object') {
+        const score = typeof analysis.score !== 'undefined' ? Number(analysis.score) : undefined;
+        if (typeof score !== 'undefined') body.aiScore = score;
+        body.analysis = analysis;
+      }
+      const resp = await axiosInstance.post(`/applications/apply/${jobId}`, body);
+      return resp.data.application || resp.data;
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['applications', variables.userId] });
+      queryClient.invalidateQueries({ queryKey: ['applications', (variables as any).userId] });
     }
   });
 };
@@ -80,44 +70,26 @@ export const useUploadResume = () => {
   
   return useMutation({
     mutationFn: async ({ userId, file }: { userId: string; file: File }): Promise<Resume> => {
-      await delay(2000); // Simulate file upload and AI analysis
-      
-      const newResume: Resume = {
+      const formData = new FormData();
+      formData.append('file', file);
+      type UploadResp = { resumeUrl?: string; url?: string; analysis?: ResumeAnalysis };
+      const resp = await axiosInstance.post<UploadResp>('/resumes/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      const data = resp.data as UploadResp;
+      // resp.data: { resumeUrl, analysis }
+      return {
         id: Date.now().toString(),
         userId,
         filename: file.name,
-        score: Math.floor(Math.random() * 20) + 80, // Random score between 80-100
-        sections: {
-          contact: true,
-          summary: Math.random() > 0.3,
-          experience: Math.random() > 0.2,
-          education: Math.random() > 0.1,
-          skills: Math.random() > 0.1,
-          projects: Math.random() > 0.4
-        },
-        keywords: ['React', 'JavaScript', 'TypeScript', 'CSS', 'HTML'],
         uploadedAt: new Date().toISOString(),
         lastModified: new Date().toISOString(),
-        analysis: {
-          grammarScore: Math.floor(Math.random() * 15) + 85,
-          atsOptimization: Math.floor(Math.random() * 20) + 75,
-          completeness: Math.floor(Math.random() * 10) + 90,
-          suggestions: [
-            'Add more quantifiable achievements',
-            'Include relevant certifications',
-            'Optimize keywords for ATS scanning'
-          ]
-        }
-      };
-      
-      const existingIndex = mockResumes.findIndex(r => r.userId === userId);
-      if (existingIndex >= 0) {
-        mockResumes[existingIndex] = newResume;
-      } else {
-        mockResumes.push(newResume);
-      }
-      
-      return newResume;
+        analysis: (data.analysis as unknown) as Resume['analysis'],
+        score: (data.analysis && (data.analysis.score as number)) || 0,
+        url: data.resumeUrl || data.url,
+        sections: { contact: true, summary: false, experience: false, education: false, skills: false, projects: false },
+        keywords: (data.analysis && (data.analysis.keywords as string[])) || []
+      } as Resume;
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['resumes', variables.userId] });

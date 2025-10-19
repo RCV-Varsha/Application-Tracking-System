@@ -1,6 +1,5 @@
 import React, { Fragment, useState } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
-import { motion } from 'framer-motion';
 import {
   X,
   Download,
@@ -15,7 +14,7 @@ import {
 } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { updateApplicationStatus, sendFeedback } from '../services/mockRecruiterService';
-import type { Applicant } from '../mock/applicantsByJob';
+// ...existing code...
 import { Button } from './ui/Button';
 import { Badge } from './ui/Badge';
 
@@ -23,14 +22,14 @@ interface CandidateModalProps {
   isOpen: boolean;
   onClose: () => void;
   applicant: {
-    id: number;
+    id: number | string;
     name: string;
     email: string;
     appliedAt: string;
     resumeUrl: string;
     score: number;
     match: number;
-    status: 'Pending' | 'Reviewed' | 'Interviewing' | 'Rejected' | 'Accepted';
+    status: 'Pending' | 'Reviewed' | 'Interviewing' | 'Rejected' | 'Accepted' | 'Shortlisted' | 'Request Update';
     parsed: {
       experience: string[];
       education: string[];
@@ -40,6 +39,7 @@ interface CandidateModalProps {
   };
   jobId: number;
   onStatusUpdate?: (appId: number | string, status: 'Pending' | 'Reviewed' | 'Interviewing' | 'Rejected' | 'Accepted') => void; // ✅ add this
+  // isUpdating removed because not used in this component
   isUpdating?: boolean;
 }
 
@@ -50,14 +50,13 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({
   applicant,
   jobId,
     onStatusUpdate, // ✅ now exists
-  isUpdating,
 }) => {
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState('');
   const queryClient = useQueryClient();
 
   const updateStatusMutation = useMutation({
-    mutationFn: (status: string) => updateApplicationStatus(applicant.id, status, jobId),
+  mutationFn: (status: string) => updateApplicationStatus(Number(applicant.id), status, jobId),
     onMutate: async (newStatus) => {
       await queryClient.cancelQueries({ queryKey: ['recruiter', 'job', jobId, 'applicants'] });
       const previousData = queryClient.getQueryData(['recruiter', 'job', jobId, 'applicants']);
@@ -68,16 +67,22 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({
       });
       return { previousData };
     },
-    onError: (err, newStatus, context) => {
+    onError: (_err, _newStatus, context) => {
       queryClient.setQueryData(['recruiter', 'job', jobId, 'applicants'], context?.previousData);
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
+      // notify parent if provided
+      try {
+        onStatusUpdate?.(applicant.id, variables as any);
+      } catch (e) {
+        // ignore
+      }
       queryClient.invalidateQueries({ queryKey: ['recruiter', 'job', jobId, 'applicants'] });
     }
   });
 
   const feedbackMutation = useMutation({
-    mutationFn: (message: string) => sendFeedback(applicant.id, message, jobId),
+  mutationFn: (message: string) => sendFeedback(Number(applicant.id), message, jobId),
     onSuccess: () => {
       setShowFeedbackModal(false);
       setFeedbackMessage('');
@@ -290,7 +295,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({
                         variant="outline"
                         size="sm"
                         onClick={() => handleStatusChange('Rejected')}
-                        disabled={updateStatusMutation.isPending}
+                        disabled={updateStatusMutation.status === 'pending'}
                       >
                         <XCircle className="w-4 h-4 mr-2" />
                         Reject
@@ -298,7 +303,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({
                       <Button
                         size="sm"
                         onClick={() => handleStatusChange('Shortlisted')}
-                        disabled={updateStatusMutation.isPending}
+                        disabled={updateStatusMutation.status === 'pending'}
                       >
                         <CheckCircle className="w-4 h-4 mr-2" />
                         Shortlist
